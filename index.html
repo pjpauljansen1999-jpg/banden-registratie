@@ -656,7 +656,7 @@ const positieLabels = { LV: 'Links Voor', RV: 'Rechts Voor', LA: 'Links Achter',
       const montage = montages.find(m => m.auto_id === auto.id && m.positie === pos);
       const barcode = montage ? montage.band_barcode : '';
       const compound = montage ? montage.compound : '';
-      const compClass = compound ? compound.toLowerCase() : '';
+      const compClass = compound === 'Wet' ? 'wet' : compound === 'Slick' ? 'soft' : '';
       gridHtml += `
         <div class="band-cel">
           <div class="band-positie-label">${positieLabels[pos]}</div>
