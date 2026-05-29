@@ -647,35 +647,73 @@ async function laadMontages() {
   const posities = ['LV', 'RV', 'LA', 'RA'];
 const positieLabels = { LV: 'Links Voor', RV: 'Rechts Voor', LA: 'Links Achter', RA: 'Rechts Achter' };
 
+// Sla compound per auto op in geheugen
+  window.autoCompound = window.autoCompound || {};
+
   inhoud.innerHTML = '';
   huidigAutos.forEach(auto => {
     const sectie = document.createElement('div');
     sectie.className = 'auto-sectie';
+
+    // Bepaal huidig compound: uit bestaande montages of uit geheugen
+    const bestaandeMontage = montages.find(m => m.auto_id === auto.id && m.compound);
+    const huidigCompound = bestaandeMontage ? bestaandeMontage.compound : (window.autoCompound[auto.id] || '');
+
+    // Compound kiezer bovenaan de auto sectie
+    const compoundKiezer = `
+      <div style="background:var(--donker3);border:1px solid var(--grijs);border-bottom:none;padding:14px 20px;display:flex;align-items:center;gap:16px;">
+        <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--grijs2);">Compound</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:0;">
+          <input type="radio" name="compound-${auto.id}" value="Slick" ${huidigCompound === 'Slick' ? 'checked' : ''}
+            onchange="setAutoCompound('${auto.id}', 'Slick')"
+            style="width:auto;margin-bottom:0;accent-color:var(--rood);">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;color:var(--wit);">SLICK</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:0;">
+          <input type="radio" name="compound-${auto.id}" value="Wet" ${huidigCompound === 'Wet' ? 'checked' : ''}
+            onchange="setAutoCompound('${auto.id}', 'Wet')"
+            style="width:auto;margin-bottom:0;accent-color:var(--rood);">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;color:#4da6ff;">WET</span>
+        </label>
+        ${huidigCompound ? `<span style="font-size:11px;color:var(--grijs2);margin-left:auto;">Geselecteerd: <strong style="color:var(--wit)">${huidigCompound}</strong></span>` : '<span style="font-size:11px;color:#ff9a4d;margin-left:auto;">⚠ Selecteer eerst een compound</span>'}
+      </div>`;
+
     let gridHtml = '<div class="band-grid">';
     posities.forEach(pos => {
       const montage = montages.find(m => m.auto_id === auto.id && m.positie === pos);
       const barcode = montage ? montage.band_barcode : '';
       const compound = montage ? montage.compound : '';
       const compClass = compound === 'Wet' ? 'wet' : compound === 'Slick' ? 'soft' : '';
+      const geblokkeerd = !huidigCompound;
       gridHtml += `
         <div class="band-cel">
           <div class="band-positie-label">${positieLabels[pos]}</div>
           <div class="band-barcode-display">${barcode || '<span style="color:var(--grijs2)">—</span>'}</div>
           ${compound ? `<div class="band-compound ${compClass}">${compound}</div>` : ''}
-       <div class="band-invoer-rij">
-            <input type="text" id="input-${auto.id}-${pos}" placeholder="Barcode..." value="${barcode}"
+          <div class="band-invoer-rij">
+            <input type="text" id="input-${auto.id}-${pos}" placeholder="${geblokkeerd ? 'Kies eerst compound...' : 'Barcode...'}"
+              value="${barcode}" ${geblokkeerd ? 'disabled' : ''}
               onkeydown="handleBarcodeEnter(event, '${auto.id}', '${pos}')">
-            <button class="btn btn-grijs btn-klein" onclick="openBandScanner('${auto.id}','${pos}')">📷</button>
-            <button class="btn btn-rood btn-klein" onclick="slaanPositieOp('${auto.id}','${pos}')">✓</button>
-          </div>`;
+            <button class="btn btn-grijs btn-klein" onclick="openBandScanner('${auto.id}','${pos}')" ${geblokkeerd ? 'disabled' : ''}>📷</button>
+            <button class="btn btn-rood btn-klein" onclick="slaanPositieOp('${auto.id}','${pos}')" ${geblokkeerd ? 'disabled' : ''}>✓</button>
+          </div>
+        </div>`;
     });
     gridHtml += '</div>';
-    sectie.innerHTML = `<div class="auto-header"><span class="auto-nummer">#${auto.startnummer||'?'}</span>${auto.naam}</div>${gridHtml}`;
+
+    sectie.innerHTML = `<div class="auto-header"><span class="auto-nummer">#${auto.startnummer||'?'}</span>${auto.naam}</div>${compoundKiezer}${gridHtml}`;
     inhoud.appendChild(sectie);
   });
 }
 
 function openBandScanner(autoId, positie) { huidigeBandCel = { autoId, positie }; openScanner('band'); }
+
+function setAutoCompound(autoId, compound) {
+  window.autoCompound = window.autoCompound || {};
+  window.autoCompound[autoId] = compound;
+  // Herlaad de montage weergave zodat invoervelden actief worden
+  laadMontages();
+}
 
 async function handleBarcodeEnter(event, autoId, positie) {
   if (event.key !== 'Enter') return;
@@ -686,13 +724,13 @@ async function handleBarcodeEnter(event, autoId, positie) {
 
   // Sla op zonder compound modal
   try {
-    await api({
+await api({
       action: 'addMontage',
       sessie_id: huidigSessieId,
       auto_id: autoId,
       positie: positie,
       band_barcode: barcode,
-      compound: ''
+      compound: (window.autoCompound && window.autoCompound[autoId]) || ''
     });
     toonToast('Band opgeslagen ✓');
   } catch (e) {
@@ -701,7 +739,7 @@ async function handleBarcodeEnter(event, autoId, positie) {
   }
 
   // Bepaal volgend veld
-  const volgorde = ['LV', 'LA', 'RV', 'RA'];
+  const volgorde = ['LV', 'RV', 'LA', 'RA'];
   const huidigIndex = volgorde.indexOf(positie);
   const isLaatste = huidigIndex === volgorde.length - 1;
 
