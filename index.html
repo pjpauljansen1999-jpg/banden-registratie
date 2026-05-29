@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PitWall — Bandenregistratie</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  :root {
+    --rood: #e8001d;
+    --rood-donker: #a5001a;
+    --zwart: #0a0a0a;
+    --donker: #111111;
+    --donker2: #1a1a1a;
+    --donker3: #242424;
+    --grijs: #333333;
+    --grijs2: #555555;
+    --licht: #aaaaaa;
+    --wit: #f0f0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--zwart);
+    color: var(--wit);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(-55deg, transparent, transparent 40px, rgba(255,255,255,0.012) 40px, rgba(255,255,255,0.012) 41px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .scherm { display: none; position: relative; z-index: 1; }
+  .scherm.actief { display: block; }
+
+  /* LOGIN */
+  #scherm-login { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #scherm-login.actief { display: flex; }
+  .login-box { width: 100%; max-width: 420px; background: var(--donker2); border: 1px solid var(--grijs); padding: 48px 40px; position: relative; }
+  .login-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--rood); }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 36px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--wit); margin-bottom: 4px; }
+  .logo span { color: var(--rood); }
+  .logo-sub { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--grijs2); margin-bottom: 40px; }
+
+  /* FORMS */
+  label { display: block; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--licht); margin-bottom: 8px; }
+  input[type=text], input[type=email], input[type=password], input[type=date], select, textarea {
+    width: 100%; background: var(--donker3); border: 1px solid var(--grijs); color: var(--wit);
+    padding: 12px 14px; font-family: 'Barlow', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; margin-bottom: 20px;
+  }
+  input:focus, select:focus { border-color: var(--rood); }
+  select option { background: var(--donker3); }
+
+  /* BUTTONS */
+  .btn { display: inline-block; padding: 13px 28px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-rood { background: var(--rood); color: white; }
+  .btn-rood:hover { background: var(--rood-donker); }
+  .btn-wit { background: transparent; color: var(--wit); border: 1px solid var(--grijs); }
+  .btn-wit:hover { border-color: var(--wit); }
+  .btn-grijs { background: var(--donker3); color: var(--licht); border: 1px solid var(--grijs); }
+  .btn-grijs:hover { color: var(--wit); border-color: var(--licht); }
+  .btn-full { width: 100%; text-align: center; }
+  .btn-klein { padding: 8px 16px; font-size: 11px; }
+
+  .fout-melding { background: rgba(232,0,29,0.15); border: 1px solid var(--rood); color: #ff6680; padding: 12px 16px; font-size: 13px; margin-bottom: 20px; display: none; }
+
+  /* APP LAYOUT */
+  .app-layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--donker); border-right: 1px solid var(--grijs); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+  .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--grijs); }
+  .sidebar-logo .logo { font-size: 24px; margin-bottom: 0; }
+  .sidebar-logo .logo-sub { margin-bottom: 0; font-size: 9px; }
+  .nav-sectie { padding: 16px 12px 8px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--grijs2); }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--licht); cursor: pointer; font-size: 13px; letter-spacing: 0.5px; transition: all 0.15s; border-left: 3px solid transparent; margin-bottom: 2px; }
+  .nav-item:hover { color: var(--wit); background: var(--donker2); }
+  .nav-item.actief { color: var(--rood); border-left-color: var(--rood); background: rgba(232,0,29,0.08); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--grijs); font-size: 12px; color: var(--grijs2); }
+  .sidebar-footer strong { display: block; color: var(--licht); margin-bottom: 8px; font-size: 13px; }
+
+  /* MAIN */
+  .hoofd-inhoud { margin-left: 220px; flex: 1; padding: 32px 40px; min-height: 100vh; }
+  .pagina-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--grijs); }
+  .pagina-titel { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; line-height: 1; }
+  .pagina-subtitel { font-size: 12px; color: var(--grijs2); letter-spacing: 1px; margin-top: 6px; }
+
+  /* KAARTEN */
+  .kaarten-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kaart { background: var(--donker2); border: 1px solid var(--grijs); padding: 20px 24px; cursor: pointer; transition: all 0.15s; position: relative; }
+  .kaart:hover { border-color: var(--rood); transform: translateY(-2px); }
+  .kaart-titel { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .kaart-sub { font-size: 12px; color: var(--grijs2); }
+  .kaart-acties { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--grijs); }
+
+  /* SESSIES */
+  .sessie-lijst { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .sessie-item { background: var(--donker2); border: 1px solid var(--grijs); padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.15s; }
+  .sessie-item:hover { border-color: var(--rood); }
+  .sessie-naam { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .sessie-type-badge { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 4px 10px; font-weight: 600; }
+  .type-training { background: rgba(0,120,255,0.2); color: #4da6ff; }
+  .type-kwalificatie { background: rgba(255,107,0,0.2); color: #ff9a4d; }
+  .type-race { background: rgba(232,0,29,0.2); color: #ff4d6b; }
+
+  /* BAND GRID */
+  .auto-sectie { margin-bottom: 32px; }
+  .auto-header { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 14px 20px; background: var(--donker3); border: 1px solid var(--grijs); margin-bottom: 1px; display: flex; align-items: center; gap: 12px; }
+  .auto-nummer { background: var(--rood); color: white; font-size: 14px; padding: 2px 10px; font-weight: 900; }
+  .band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--grijs); }
+  .band-cel { background: var(--donker2); padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .band-positie-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--grijs2); font-weight: 600; }
+  .band-barcode-display { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: var(--wit); letter-spacing: 1px; min-height: 30px; }
+  .band-compound { font-size: 12px; color: var(--licht); }
+  .band-compound.hard { color: #ccc; }
+  .band-compound.medium { color: #ffd700; }
+  .band-compound.soft { color: var(--rood); }
+  .band-compound.intermediate { color: #4dff91; }
+  .band-compound.wet { color: #4da6ff; }
+  .band-invoer-rij { display: flex; gap: 8px; align-items: center; }
+  .band-invoer-rij input { flex: 1; margin-bottom: 0; padding: 9px 12px; font-size: 13px; }
+
+  /* MODALS */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 500; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--donker2); border: 1px solid var(--grijs); padding: 32px; width: 100%; max-width: 500px; position: relative; }
+  .modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--rood); }
+  .modal-titel { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+  .modal-sluit { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--licht); font-size: 22px; cursor: pointer; line-height: 1; }
+  .modal-sluit:hover { color: var(--rood); }
+  .modal-acties { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+
+  /* SCANNER */
+  #camera-container { width: 100%; background: black; aspect-ratio: 4/3; position: relative; overflow: hidden; }
+  #camera-container video { width: 100%; height: 100%; object-fit: cover; }
+  #camera-container canvas { display: none; }
+  .scan-lijn { position: absolute; left: 0; right: 0; height: 2px; background: var(--rood); animation: scannen 2s ease-in-out infinite; box-shadow: 0 0 10px var(--rood); }
+  @keyframes scannen { 0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; } }
+
+  /* BREADCRUMB */
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--grijs2); margin-bottom: 24px; letter-spacing: 0.5px; }
+  .breadcrumb span { cursor: pointer; transition: color 0.15s; }
+  .breadcrumb span:hover { color: var(--rood); }
+  .breadcrumb .sep { color: var(--grijs); }
+  .breadcrumb .huidig { color: var(--licht); cursor: default; }
+
+  /* LEEG */
+  .leeg { text-align: center; padding: 60px 20px; color: var(--grijs2); font-size: 14px; letter-spacing: 1px; }
+  .leeg-icoon { font-size: 40px; margin-bottom: 16px; opacity: 0.4; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 32px; right: 32px; background: var(--donker2); border: 1px solid var(--grijs); border-left: 3px solid var(--rood); padding: 14px 20px; font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.25s; pointer-events: none; max-width: 320px; }
+  #toast.zichtbaar { opacity: 1; transform: translateY(0); }
+  #toast.succes { border-left-color: #4dff91; }
+
+  /* LOADER */
+  .loader { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--grijs); border-top-color: var(--rood); border-radius: 50%; animation: draaien 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes draaien { to { transform: rotate(360deg); } }
+
+  /* TABEL */
+  .tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tabel th { text-align: left; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--grijs2); padding: 10px 16px; border-bottom: 1px solid var(--grijs); font-weight: 600; }
+  .tabel td { padding: 12px 16px; border-bottom: 1px solid var(--donker3); color: var(--licht); }
+  .tabel tr:hover td { background: var(--donker3); }
+
+  /* FORMS */
+  .form-groep { margin-bottom: 20px; }
+  .form-rij { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* INSTELLINGEN */
+  .instelling-sectie { background: var(--donker2); border: 1px solid var(--grijs); padding: 24px; margin-bottom: 16px; }
+  .instelling-sectie h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; color: var(--wit); }
+  .api-url-veld { display: flex; gap: 8px; }
+  .api-url-veld input { margin-bottom: 0; flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- INLOGSCHERM -->
+<div id="scherm-login" class="scherm actief">
+  <div class="login-box">
+    <div class="logo">Pit<span>Wall</span></div>
+    <div class="logo-sub">Bandenregistratie systeem</div>
+    <div id="login-fout" class="fout-melding"></div>
+    <div class="form-groep">
+      <label>E-mailadres</label>
+      <input type="email" id="login-email" placeholder="naam@team.nl" autocomplete="email">
+    </div>
+    <div class="form-groep">
+      <label>Wachtwoord</label>
+      <input type="password" id="login-wachtwoord" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-rood btn-full" onclick="login()">Inloggen</button>
+    <div style="margin-top:16px;font-size:11px;color:var(--grijs2);text-align:center;letter-spacing:1px;">PORSCHE CUP TEAM MANAGEMENT</div>
+  </div>
+</div>
+
+<!-- HOOFD APP -->
+<div id="scherm-app" class="scherm">
+  <div class="app-layout">
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo">Pit<span>Wall</span></div>
+        <div class="logo-sub">Bandenregistratie</div>
+      </div>
+      <div class="nav-sectie">Navigatie</div>
+      <div class="nav-item actief" onclick="toonPagina('weekenden')" id="nav-weekenden">
+        <span class="nav-icon">🏁</span> Weekenden
+      </div>
+      <div class="nav-item" onclick="toonPagina('historie')" id="nav-historie">
+        <span class="nav-icon">🔍</span> Bandhistorie
+      </div>
+      <div class="nav-item" onclick="toonPagina('instellingen')" id="nav-instellingen">
+        <span class="nav-icon">⚙️</span> Instellingen
+      </div>
+      <div class="sidebar-footer">
+        <strong id="sidebar-email">—</strong>
+        <button class="btn btn-grijs btn-klein btn-full" onclick="uitloggen()">Uitloggen</button>
+      </div>
+    </nav>
+
+    <main class="hoofd-inhoud">
+
+      <!-- WEEKENDEN -->
+      <div id="pagina-weekenden" class="pagina">
+        <div class="pagina-header">
+          <div>
+            <div class="pagina-titel">Raceweekenden</div>
+            <div class="pagina-subtitel">Beheer seizoen & weekenden</div>
+          </div>
+          <button class="btn btn-rood" onclick="openModalWeekend()">+ Nieuw weekend</button>
+        </div>
+        <div id="weekenden-lijst" class="kaarten-grid">
+          <div class="leeg"><div class="leeg-icoon">🏁</div>Geen weekenden gevonden</div>
+        </div>
+      </div>
+
+      <!-- SESSIES -->
+      <div id="pagina-sessies" class="pagina" style="display:none">
+        <div class="breadcrumb">
+          <span onclick="toonPagina('weekenden')">Weekenden</span>
+          <span class="sep">›</span>
+          <span class="huidig" id="breadcrumb-weekend">—</span>
+        </div>
+        <div class="pagina-header">
+          <div>
+            <div class="pagina-titel" id="sessies-weekend-naam">—</div>
+            <div class="pagina-subtitel" id="sessies-weekend-info">—</div>
+          </div>
+          <button class="btn btn-rood" onclick="openModalSessie()">+ Sessie toevoegen</button>
+        </div>
+        <div id="sessies-lijst" class="sessie-lijst">
+          <div class="leeg"><div class="leeg-icoon">📋</div>Geen sessies gevonden</div>
+        </div>
+      </div>
+
+      <!-- MONTAGES -->
+      <div id="pagina-montages" class="pagina" style="display:none">
+        <div class="breadcrumb">
+          <span onclick="toonPagina('weekenden')">Weekenden</span>
+          <span class="sep">›</span>
+          <span onclick="toonSessies()" id="breadcrumb-weekend2">—</span>
+          <span class="sep">›</span>
+          <span class="huidig" id="breadcrumb-sessie">—</span>
+        </div>
+        <div class="pagina-header">
+          <div>
+            <div class="pagina-titel" id="montages-sessie-naam">—</div>
+            <div class="pagina-subtitel" id="montages-sessie-info">—</div>
+          </div>
+          <button class="btn btn-grijs" onclick="laadMontages()">↻ Vernieuwen</button>
+        </div>
+        <div id="montages-inhoud">
+          <div class="leeg"><div class="leeg-icoon">🔄</div>Laden...</div>
+        </div>
+      </div>
+
+      <!-- HISTORIE -->
+      <div id="pagina-historie" class="pagina" style="display:none">
+        <div class="pagina-header">
+          <div>
+            <div class="pagina-titel">Bandhistorie</div>
+            <div class="pagina-subtitel">Zoek op barcode</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:24px;">
+          <input type="text" id="historie-barcode" placeholder="Voer barcode in..." style="margin-bottom:0;max-width:320px;">
+          <button class="btn btn-rood" onclick="zoekHistorie()">Zoeken</button>
+          <button class="btn btn-grijs" onclick="openScanner('historie')">📷 Scannen</button>
+        </div>
+        <div id="historie-resultaat"></div>
+      </div>
+
+      <!-- INSTELLINGEN -->
+      <div id="pagina-instellingen" class="pagina" style="display:none">
+        <div class="pagina-header">
+          <div>
+            <div class="pagina-titel">Instellingen</div>
+            <div class="pagina-subtitel">Configureer de koppeling met Google Sheets</div>
+          </div>
+        </div>
+        <div class="instelling-sectie">
+          <h3>🔗 Google Apps Script URL</h3>
+          <p style="font-size:13px;color:var(--grijs2);margin-bottom:16px;">Plak hier de URL van je gedeployde Google Apps Script webapp.</p>
+          <div class="api-url-veld">
+            <input type="text" id="instelling-api-url" placeholder="https://script.google.com/macros/s/...">
+            <button class="btn btn-rood" onclick="slaApiUrlOp()">Opslaan</button>
+          </div>
+        </div>
+        <div class="instelling-sectie">
+          <h3>🚗 Auto's beheren</h3>
+          <div id="autos-lijst-instelling" style="margin-bottom:16px;"></div>
+          <div style="display:flex;gap:12px;">
+            <input type="text" id="auto-naam" placeholder="Auto naam (bijv. Auto #1)" style="margin-bottom:0;max-width:240px;">
+            <input type="text" id="auto-nummer" placeholder="Startnummer" style="margin-bottom:0;max-width:120px;">
+            <button class="btn btn-rood" onclick="addAuto()">+ Toevoegen</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-weekend" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-sluit" onclick="sluitModal('modal-weekend')">✕</button>
+    <div class="modal-titel">Nieuw weekend</div>
+    <div class="form-groep"><label>Naam</label><input type="text" id="weekend-naam" placeholder="bijv. Zandvoort 2026"></div>
+    <div class="form-groep"><label>Circuit</label><input type="text" id="weekend-circuit" placeholder="bijv. Circuit Zandvoort"></div>
+    <div class="form-rij">
+      <div class="form-groep"><label>Startdatum</label><input type="date" id="weekend-datum-start"></div>
+      <div class="form-groep"><label>Einddatum</label><input type="date" id="weekend-datum-eind"></div>
+    </div>
+    <div class="modal-acties">
+      <button class="btn btn-grijs" onclick="sluitModal('modal-weekend')">Annuleren</button>
+      <button class="btn btn-rood" onclick="addWeekend()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-sessie" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-sluit" onclick="sluitModal('modal-sessie')">✕</button>
+    <div class="modal-titel">Sessie toevoegen</div>
+    <div class="form-groep">
+      <label>Type sessie</label>
+      <select id="sessie-type">
+        <option value="Vrije Training">Vrije Training</option>
+        <option value="Kwalificatie">Kwalificatie</option>
+        <option value="Race 1">Race 1</option>
+        <option value="Race 2">Race 2</option>
+      </select>
+    </div>
+    <div class="form-groep"><label>Nummer (voor Vrije Training)</label><input type="text" id="sessie-nummer" placeholder="1" value="1"></div>
+    <div class="modal-acties">
+      <button class="btn btn-grijs" onclick="sluitModal('modal-sessie')">Annuleren</button>
+      <button class="btn btn-rood" onclick="addSessie()">Toevoegen</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-band" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-sluit" onclick="sluitModal('modal-band')">✕</button>
+    <div class="modal-titel" id="modal-band-titel">Band registreren</div>
+    <div style="font-size:12px;color:var(--grijs2);margin-bottom:20px;" id="modal-band-info">—</div>
+    <div class="form-groep">
+      <label>Barcode</label>
+      <div class="band-invoer-rij">
+        <input type="text" id="modal-barcode" placeholder="Scan of typ barcode">
+        <button class="btn btn-grijs btn-klein" onclick="openScanner('band')">📷</button>
+      </div>
+    </div>
+    <div class="form-groep">
+      <label>Compound</label>
+      <select id="modal-compound">
+        <option value="">— Selecteer —</option>
+        <option value="Hard">Hard</option>
+        <option value="Medium">Medium</option>
+        <option value="Soft">Soft</option>
+        <option value="Intermediate">Intermediate</option>
+        <option value="Wet">Wet</option>
+      </select>
+    </div>
+    <div class="modal-acties">
+      <button class="btn btn-grijs" onclick="sluitModal('modal-band')">Annuleren</button>
+      <button class="btn btn-rood" onclick="slaanBandOp()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-scanner" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-sluit" onclick="stopScanner()">✕</button>
+    <div class="modal-titel">📷 Barcode scannen</div>
+    <div id="camera-container"><div class="scan-lijn"></div></div>
+    <p style="font-size:12px;color:var(--grijs2);margin-top:12px;text-align:center;">Houd de barcode voor de camera</p>
+    <div class="modal-acties">
+      <button class="btn btn-grijs btn-full" onclick="stopScanner()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// STATE
+let token = localStorage.getItem('pw_token') || '';
+let gebruikerEmail = localStorage.getItem('pw_email') || '';
+let huidigWeekendId = null;
+let huidigWeekendNaam = '';
+let huidigSessieId = null;
+let huidigSessieNaam = '';
+let huidigAutos = [];
+let scannerDoel = null;
+let huidigeBandCel = null;
+
+// API
+function apiUrl() { return localStorage.getItem('pw_api_url') || ''; }
+
+async function api(body) {
+  const url = apiUrl();
+  if (!url) { toonToast('Stel eerst de Apps Script URL in bij Instellingen', false); throw new Error('Geen API URL'); }
+  body.token = token;
+  const resp = await fetch(url, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  const data = await resp.json();
+  if (!data.success) throw new Error(data.message || 'Onbekende fout');
+  return data;
+}
+
+// TOAST
+function toonToast(tekst, succes = true) {
+  const t = document.getElementById('toast');
+  t.textContent = tekst;
+  t.className = 'zichtbaar' + (succes ? ' succes' : '');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// AUTH
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const ww = document.getElementById('login-wachtwoord').value;
+  const fout = document.getElementById('login-fout');
+  fout.style.display = 'none';
+  if (!email || !ww) { fout.textContent = 'Vul e-mail en wachtwoord in'; fout.style.display = 'block'; return; }
+  const url = apiUrl();
+  if (!url) {
+    token = 'demo'; gebruikerEmail = email;
+    localStorage.setItem('pw_token', token); localStorage.setItem('pw_email', email);
+    toonApp(); return;
+  }
+  try {
+    const data = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'login', email, wachtwoord: ww }), headers: { 'Content-Type': 'application/json' } }).then(r => r.json());
+    if (!data.success) { fout.textContent = data.message; fout.style.display = 'block'; return; }
+    token = data.token; gebruikerEmail = email;
+    localStorage.setItem('pw_token', token); localStorage.setItem('pw_email', email);
+    toonApp();
+  } catch (e) { fout.textContent = 'Verbindingsfout: ' + e.message; fout.style.display = 'block'; }
+}
+
+function uitloggen() {
+  token = ''; localStorage.removeItem('pw_token'); localStorage.removeItem('pw_email');
+  document.getElementById('scherm-app').style.display = 'none';
+  document.getElementById('scherm-login').classList.add('actief');
+  document.getElementById('scherm-login').style.display = 'flex';
+}
+
+function toonApp() {
+  document.getElementById('scherm-login').classList.remove('actief');
+  document.getElementById('scherm-login').style.display = 'none';
+  document.getElementById('scherm-app').classList.add('actief');
+  document.getElementById('scherm-app').style.display = 'block';
+  document.getElementById('sidebar-email').textContent = gebruikerEmail;
+  const savedUrl = localStorage.getItem('pw_api_url') || '';
+  document.getElementById('instelling-api-url').value = savedUrl;
+  toonPagina('weekenden');
+  laadAutos();
+}
+
+// NAVIGATIE
+function toonPagina(naam) {
+  document.querySelectorAll('.pagina').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('actief'));
+  document.getElementById('pagina-' + naam).style.display = 'block';
+  const navId = 'nav-' + (naam === 'sessies' || naam === 'montages' ? 'weekenden' : naam);
+  const navEl = document.getElementById(navId);
+  if (navEl) navEl.classList.add('actief');
+  if (naam === 'weekenden') laadWeekenden();
+  if (naam === 'instellingen') laadAutosInstelling();
+}
+
+function sluitModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModalWeekend() { document.getElementById('modal-weekend').classList.add('open'); }
+function openModalSessie() { document.getElementById('modal-sessie').classList.add('open'); }
+
+// WEEKENDEN
+async function laadWeekenden() {
+  const lijst = document.getElementById('weekenden-lijst');
+  lijst.innerHTML = '<div class="leeg"><span class="loader"></span> Laden...</div>';
+  try {
+    const data = await api({ action: 'getWeekenden' });
+    if (!data.weekenden.length) { lijst.innerHTML = '<div class="leeg"><div class="leeg-icoon">🏁</div>Geen weekenden. Maak een eerste weekend aan.</div>'; return; }
+    lijst.innerHTML = '';
+    data.weekenden.forEach(w => {
+      const kaart = document.createElement('div');
+      kaart.className = 'kaart';
+      kaart.innerHTML = `
+        <div class="kaart-titel">${w.naam}</div>
+        <div class="kaart-sub">${w.circuit} · ${w.datum_start || '?'} – ${w.datum_eind || '?'}</div>
+        <div class="kaart-acties">
+          <button class="btn btn-rood btn-klein" onclick="openWeekend('${w.id}','${esc(w.naam)}','${esc(w.circuit)}','${w.datum_start||''}','${w.datum_eind||''}')">Sessies →</button>
+          <button class="btn btn-grijs btn-klein" onclick="verwijderWeekend('${w.id}')">Verwijderen</button>
+        </div>`;
+      lijst.appendChild(kaart);
+    });
+  } catch (e) { lijst.innerHTML = `<div class="leeg">Fout: ${e.message}</div>`; }
+}
+
+async function addWeekend() {
+  const naam = document.getElementById('weekend-naam').value.trim();
+  const circuit = document.getElementById('weekend-circuit').value.trim();
+  if (!naam || !circuit) { toonToast('Naam en circuit zijn verplicht', false); return; }
+  try {
+    await api({ action: 'addWeekend', naam, circuit, datum_start: document.getElementById('weekend-datum-start').value, datum_eind: document.getElementById('weekend-datum-eind').value });
+    sluitModal('modal-weekend'); toonToast('Weekend toegevoegd ✓'); laadWeekenden();
+    ['weekend-naam','weekend-circuit','weekend-datum-start','weekend-datum-eind'].forEach(id => document.getElementById(id).value = '');
+  } catch (e) { toonToast(e.message, false); }
+}
+
+async function verwijderWeekend(id) {
+  if (!confirm('Weekend verwijderen?')) return;
+  try { await api({ action: 'deleteWeekend', id }); toonToast('Weekend verwijderd'); laadWeekenden(); }
+  catch (e) { toonToast(e.message, false); }
+}
+
+function openWeekend(id, naam, circuit, start, eind) {
+  huidigWeekendId = id; huidigWeekendNaam = naam;
+  document.getElementById('sessies-weekend-naam').textContent = naam;
+  document.getElementById('sessies-weekend-info').textContent = circuit + (start ? ' · ' + start + ' – ' + eind : '');
+  document.getElementById('breadcrumb-weekend').textContent = naam;
+  document.getElementById('breadcrumb-weekend2').textContent = naam;
+  toonPagina('sessies'); laadSessies();
+}
+
+function toonSessies() { toonPagina('sessies'); laadSessies(); }
+
+// SESSIES
+async function laadSessies() {
+  const lijst = document.getElementById('sessies-lijst');
+  lijst.innerHTML = '<div class="leeg"><span class="loader"></span> Laden...</div>';
+  try {
+    const data = await api({ action: 'getSessies', weekend_id: huidigWeekendId });
+    if (!data.sessies.length) { lijst.innerHTML = '<div class="leeg"><div class="leeg-icoon">📋</div>Geen sessies. Voeg een sessie toe.</div>'; return; }
+    lijst.innerHTML = '';
+    data.sessies.forEach(s => {
+      const naam = s.type + (s.type === 'Vrije Training' ? ' ' + s.nummer : '');
+      const typeClass = s.type.startsWith('Vrije') ? 'type-training' : s.type === 'Kwalificatie' ? 'type-kwalificatie' : 'type-race';
+      const el = document.createElement('div');
+      el.className = 'sessie-item';
+      el.innerHTML = `
+        <div><div class="sessie-naam">${naam}</div></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="sessie-type-badge ${typeClass}">${s.type}</span>
+          <button class="btn btn-rood btn-klein" onclick="openSessie('${s.id}','${esc(naam)}')">Banden →</button>
+          <button class="btn btn-grijs btn-klein" onclick="verwijderSessie('${s.id}')">✕</button>
+        </div>`;
+      lijst.appendChild(el);
+    });
+  } catch (e) { lijst.innerHTML = `<div class="leeg">Fout: ${e.message}</div>`; }
+}
+
+async function addSessie() {
+  const type = document.getElementById('sessie-type').value;
+  const nummer = document.getElementById('sessie-nummer').value || '1';
+  try { await api({ action: 'addSessie', weekend_id: huidigWeekendId, type, nummer }); sluitModal('modal-sessie'); toonToast('Sessie toegevoegd ✓'); laadSessies(); }
+  catch (e) { toonToast(e.message, false); }
+}
+
+async function verwijderSessie(id) {
+  if (!confirm('Sessie verwijderen?')) return;
+  try { await api({ action: 'deleteSessie', id }); toonToast('Sessie verwijderd'); laadSessies(); }
+  catch (e) { toonToast(e.message, false); }
+}
+
+function openSessie(id, naam) {
+  huidigSessieId = id; huidigSessieNaam = naam;
+  document.getElementById('montages-sessie-naam').textContent = naam;
+  document.getElementById('montages-sessie-info').textContent = huidigWeekendNaam;
+  document.getElementById('breadcrumb-sessie').textContent = naam;
+  toonPagina('montages'); laadMontages();
+}
+
+// AUTO'S
+async function laadAutos() {
+  try { const data = await api({ action: 'getAutos' }); huidigAutos = data.autos || []; }
+  catch (e) { huidigAutos = []; }
+}
+
+async function laadAutosInstelling() {
+  await laadAutos();
+  const lijst = document.getElementById('autos-lijst-instelling');
+  if (!huidigAutos.length) { lijst.innerHTML = '<div style="color:var(--grijs2);font-size:13px;margin-bottom:12px;">Geen autos toegevoegd</div>'; return; }
+  lijst.innerHTML = huidigAutos.map(a =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--grijs);">
+      <span style="font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:16px;">#${a.startnummer} — ${a.naam}</span>
+      <button class="btn btn-grijs btn-klein" onclick="verwijderAuto('${a.id}')">Verwijderen</button>
+    </div>`
+  ).join('');
+}
+
+async function addAuto() {
+  const naam = document.getElementById('auto-naam').value.trim();
+  const nummer = document.getElementById('auto-nummer').value.trim();
+  if (!naam) { toonToast('Naam is verplicht', false); return; }
+  try {
+    await api({ action: 'addAuto', naam, startnummer: nummer });
+    toonToast('Auto toegevoegd ✓');
+    document.getElementById('auto-naam').value = ''; document.getElementById('auto-nummer').value = '';
+    laadAutosInstelling(); laadAutos();
+  } catch (e) { toonToast(e.message, false); }
+}
+
+async function verwijderAuto(id) {
+  if (!confirm('Auto verwijderen?')) return;
+  try { await api({ action: 'deleteAuto', id }); toonToast('Auto verwijderd'); laadAutosInstelling(); laadAutos(); }
+  catch (e) { toonToast(e.message, false); }
+}
+
+// MONTAGES
+async function laadMontages() {
+  const inhoud = document.getElementById('montages-inhoud');
+  inhoud.innerHTML = '<div class="leeg"><span class="loader"></span> Laden...</div>';
+  if (!huidigAutos.length) await laadAutos();
+  if (!huidigAutos.length) { inhoud.innerHTML = '<div class="leeg"><div class="leeg-icoon">🚗</div>Voeg eerst autos toe bij Instellingen.</div>'; return; }
+
+  let montages = [];
+  try { const data = await api({ action: 'getMontages', sessie_id: huidigSessieId }); montages = data.montages || []; } catch (e) {}
+
+  const posities = ['LV', 'RV', 'LA', 'RA'];
+  const positieLabels = { LV: 'Links Voor', RV: 'Rechts Voor', LA: 'Links Achter', RA: 'Rechts Achter' };
+
+  inhoud.innerHTML = '';
+  huidigAutos.forEach(auto => {
+    const sectie = document.createElement('div');
+    sectie.className = 'auto-sectie';
+    let gridHtml = '<div class="band-grid">';
+    posities.forEach(pos => {
+      const montage = montages.find(m => m.auto_id === auto.id && m.positie === pos);
+      const barcode = montage ? montage.band_barcode : '';
+      const compound = montage ? montage.compound : '';
+      const compClass = compound ? compound.toLowerCase() : '';
+      gridHtml += `
+        <div class="band-cel">
+          <div class="band-positie-label">${positieLabels[pos]}</div>
+          <div class="band-barcode-display">${barcode || '<span style="color:var(--grijs2)">—</span>'}</div>
+          ${compound ? `<div class="band-compound ${compClass}">${compound}</div>` : ''}
+          <div class="band-invoer-rij">
+            <input type="text" id="input-${auto.id}-${pos}" placeholder="Barcode..." value="${barcode}">
+            <button class="btn btn-grijs btn-klein" onclick="openBandScanner('${auto.id}','${pos}')">📷</button>
+            <button class="btn btn-rood btn-klein" onclick="slaanPositieOp('${auto.id}','${pos}')">✓</button>
+          </div>
+        </div>`;
+    });
+    gridHtml += '</div>';
+    sectie.innerHTML = `<div class="auto-header"><span class="auto-nummer">#${auto.startnummer||'?'}</span>${auto.naam}</div>${gridHtml}`;
+    inhoud.appendChild(sectie);
+  });
+}
+
+function openBandScanner(autoId, positie) { huidigeBandCel = { autoId, positie }; openScanner('band'); }
+
+async function slaanPositieOp(autoId, positie) {
+  const barcode = document.getElementById(`input-${autoId}-${positie}`).value.trim();
+  if (!barcode) { toonToast('Voer een barcode in', false); return; }
+  huidigeBandCel = { autoId, positie };
+  document.getElementById('modal-barcode').value = barcode;
+  document.getElementById('modal-band-titel').textContent = `Band — ${positie}`;
+  document.getElementById('modal-band-info').textContent = `Auto: ${huidigAutos.find(a=>a.id===autoId)?.naam||autoId} · Sessie: ${huidigSessieNaam}`;
+  document.getElementById('modal-compound').value = '';
+  document.getElementById('modal-band').classList.add('open');
+}
+
+async function slaanBandOp() {
+  const barcode = document.getElementById('modal-barcode').value.trim();
+  const compound = document.getElementById('modal-compound').value;
+  if (!barcode) { toonToast('Barcode is verplicht', false); return; }
+  try {
+    await api({ action: 'addMontage', sessie_id: huidigSessieId, auto_id: huidigeBandCel.autoId, positie: huidigeBandCel.positie, band_barcode: barcode, compound });
+    sluitModal('modal-band'); toonToast('Band opgeslagen ✓'); laadMontages();
+  } catch (e) { toonToast(e.message, false); }
+}
+
+// HISTORIE
+async function zoekHistorie() {
+  const barcode = document.getElementById('historie-barcode').value.trim();
+  if (!barcode) { toonToast('Voer een barcode in', false); return; }
+  const res = document.getElementById('historie-resultaat');
+  res.innerHTML = '<div class="leeg"><span class="loader"></span> Zoeken...</div>';
+  try {
+    const data = await api({ action: 'getBandHistorie', barcode });
+    if (!data.historie.length) { res.innerHTML = `<div class="leeg"><div class="leeg-icoon">🔍</div>Geen montages gevonden voor barcode <strong>${barcode}</strong></div>`; return; }
+    res.innerHTML = `
+      <div style="margin-bottom:16px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px;">
+        Barcode: <span style="color:var(--rood)">${barcode}</span>
+        <span style="font-size:14px;color:var(--grijs2);margin-left:12px;">${data.historie.length} montage(s)</span>
+      </div>
+      <table class="tabel">
+        <thead><tr><th>Weekend</th><th>Circuit</th><th>Sessie</th><th>Auto</th><th>Positie</th><th>Compound</th><th>Tijdstip</th></tr></thead>
+        <tbody>
+          ${data.historie.map(h => `
+            <tr>
+              <td>${h.weekend_naam||'—'}</td><td>${h.circuit||'—'}</td>
+              <td>${h.sessie_type||'—'} ${h.sessie_nummer||''}</td>
+              <td>${h.auto_naam||'—'} ${h.startnummer?'#'+h.startnummer:''}</td>
+              <td>${h.positie}</td><td>${h.compound||'—'}</td>
+              <td style="color:var(--grijs2)">${h.tijdstip?new Date(h.tijdstip).toLocaleString('nl-NL'):'—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) { res.innerHTML = `<div class="leeg">Fout: ${e.message}</div>`; }
+}
+
+// INSTELLINGEN
+function slaApiUrlOp() {
+  const url = document.getElementById('instelling-api-url').value.trim();
+  localStorage.setItem('pw_api_url', url);
+  toonToast('URL opgeslagen ✓');
+}
+
+// SCANNER
+function openScanner(doel) {
+  scannerDoel = doel;
+  document.getElementById('modal-scanner').classList.add('open');
+  Quagga.init({
+    inputStream: { type: 'LiveStream', target: document.getElementById('camera-container'), constraints: { facingMode: 'environment' } },
+    decoder: { readers: ['code_128_reader','ean_13_reader','ean_8_reader','code_39_reader'] }
+  }, err => {
+    if (err) { toonToast('Camera niet beschikbaar', false); stopScanner(); return; }
+    Quagga.start();
+  });
+  Quagga.onDetected(result => { const code = result.codeResult.code; stopScanner(); verwerkScan(code); });
+}
+
+function stopScanner() {
+  try { Quagga.stop(); } catch(e) {}
+  document.getElementById('modal-scanner').classList.remove('open');
+}
+
+function verwerkScan(barcode) {
+  if (scannerDoel === 'band') {
+    document.getElementById('modal-barcode').value = barcode;
+    if (huidigeBandCel) document.getElementById(`input-${huidigeBandCel.autoId}-${huidigeBandCel.positie}`).value = barcode;
+    if (!document.getElementById('modal-band').classList.contains('open')) document.getElementById('modal-band').classList.add('open');
+    toonToast('Barcode gescand: ' + barcode);
+  } else if (scannerDoel === 'historie') {
+    document.getElementById('historie-barcode').value = barcode;
+    toonToast('Barcode gescand: ' + barcode);
+    zoekHistorie();
+  }
+}
+
+// HULP
+function esc(str) { return String(str).replace(/'/g, "\\'"); }
+
+// OPSTARTEN
+window.addEventListener('load', () => { if (token) { gebruikerEmail = localStorage.getItem('pw_email') || ''; toonApp(); } });
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('login-wachtwoord').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+});
+</script>
+</body>
+</html>
