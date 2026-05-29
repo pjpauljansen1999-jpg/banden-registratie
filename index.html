@@ -383,10 +383,7 @@
       <label>Compound</label>
       <select id="modal-compound">
         <option value="">— Selecteer —</option>
-        <option value="Hard">Hard</option>
-        <option value="Medium">Medium</option>
-        <option value="Soft">Soft</option>
-        <option value="Intermediate">Intermediate</option>
+        <option value="Hard">Slick</option>
         <option value="Wet">Wet</option>
       </select>
     </div>
@@ -648,7 +645,7 @@ async function laadMontages() {
   try { const data = await api({ action: 'getMontages', sessie_id: huidigSessieId }); montages = data.montages || []; } catch (e) {}
 
   const posities = ['LV', 'RV', 'LA', 'RA'];
-  const positieLabels = { LV: 'Links Voor', RV: 'Rechts Voor', LA: 'Links Achter', RA: 'Rechts Achter' };
+const positieLabels = { LV: 'Links Voor', RV: 'Rechts Voor', LA: 'Links Achter', RA: 'Rechts Achter' };
 
   inhoud.innerHTML = '';
   huidigAutos.forEach(auto => {
@@ -665,12 +662,12 @@ async function laadMontages() {
           <div class="band-positie-label">${positieLabels[pos]}</div>
           <div class="band-barcode-display">${barcode || '<span style="color:var(--grijs2)">—</span>'}</div>
           ${compound ? `<div class="band-compound ${compClass}">${compound}</div>` : ''}
-          <div class="band-invoer-rij">
-            <input type="text" id="input-${auto.id}-${pos}" placeholder="Barcode..." value="${barcode}">
+       <div class="band-invoer-rij">
+            <input type="text" id="input-${auto.id}-${pos}" placeholder="Barcode..." value="${barcode}"
+              onkeydown="handleBarcodeEnter(event, '${auto.id}', '${pos}')">
             <button class="btn btn-grijs btn-klein" onclick="openBandScanner('${auto.id}','${pos}')">📷</button>
             <button class="btn btn-rood btn-klein" onclick="slaanPositieOp('${auto.id}','${pos}')">✓</button>
-          </div>
-        </div>`;
+          </div>`;
     });
     gridHtml += '</div>';
     sectie.innerHTML = `<div class="auto-header"><span class="auto-nummer">#${auto.startnummer||'?'}</span>${auto.naam}</div>${gridHtml}`;
@@ -679,6 +676,45 @@ async function laadMontages() {
 }
 
 function openBandScanner(autoId, positie) { huidigeBandCel = { autoId, positie }; openScanner('band'); }
+
+async function handleBarcodeEnter(event, autoId, positie) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+
+  const barcode = document.getElementById(`input-${autoId}-${positie}`).value.trim();
+  if (!barcode) return;
+
+  // Sla op zonder compound modal
+  try {
+    await api({
+      action: 'addMontage',
+      sessie_id: huidigSessieId,
+      auto_id: autoId,
+      positie: positie,
+      band_barcode: barcode,
+      compound: ''
+    });
+    toonToast('Band opgeslagen ✓');
+  } catch (e) {
+    toonToast(e.message, false);
+    return;
+  }
+
+  // Bepaal volgend veld
+  const volgorde = ['LV', 'LA', 'RV', 'RA'];
+  const huidigIndex = volgorde.indexOf(positie);
+  const isLaatste = huidigIndex === volgorde.length - 1;
+
+  if (!isLaatste) {
+    // Zoek volgend veld van dezelfde auto
+    const volgendePositie = volgorde[huidigIndex + 1];
+    const volgendVeld = document.getElementById(`input-${autoId}-${volgendePositie}`);
+    if (volgendVeld) {
+      volgendVeld.focus();
+      volgendVeld.select();
+    }
+  }
+}
 
 async function slaanPositieOp(autoId, positie) {
   const barcode = document.getElementById(`input-${autoId}-${positie}`).value.trim();
