@@ -461,7 +461,7 @@ async function login() {
     toonApp(); return;
   }
   try {
-    const data = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'login', email, wachtwoord: ww }), headers: { 'Content-Type': 'application/json' } }).then(r => r.json());
+    const data = await fetch(url, { method: 'POST', body: JSON.stringify({ action: 'login', email, wachtwoord: ww }), headers: { 'Content-Type': 'text/plain' } }).then(r => r.json());
     if (!data.success) { fout.textContent = data.message; fout.style.display = 'block'; return; }
     token = data.token; gebruikerEmail = email;
     localStorage.setItem('pw_token', token); localStorage.setItem('pw_email', email);
