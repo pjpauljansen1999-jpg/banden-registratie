@@ -428,7 +428,11 @@ async function api(body) {
   const url = apiUrl();
   if (!url) { toonToast('Stel eerst de Apps Script URL in bij Instellingen', false); throw new Error('Geen API URL'); }
   body.token = token;
-  const resp = await fetch(url, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  const resp = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'text/plain' }
+  });
   const data = await resp.json();
   if (!data.success) throw new Error(data.message || 'Onbekende fout');
   return data;
